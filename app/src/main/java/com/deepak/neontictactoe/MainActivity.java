@@ -2,6 +2,10 @@ package com.deepak.neontictactoe;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -16,6 +20,8 @@ import org.json.JSONArray;
 
 public class MainActivity extends Activity {
     private WebView web;
+    private ValueCallback<Uri[]> fileCb;
+    private static final int PICK = 42;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +38,23 @@ public class MainActivity extends Activity {
 
         web.addJavascriptInterface(new Bridge(), "Android");
         web.setWebViewClient(new WebViewClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams params) {
+                if (fileCb != null) fileCb.onReceiveValue(null);
+                fileCb = cb;
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("image/*");
+                try {
+                    startActivityForResult(Intent.createChooser(i, "Photo chuno"), PICK);
+                } catch (Exception e) {
+                    fileCb = null;
+                    return false;
+                }
+                return true;
+            }
+        });
         web.loadUrl("file:///android_asset/index.html");
         setContentView(web);
     }
@@ -54,6 +77,18 @@ public class MainActivity extends Activity {
                 }
             } catch (Exception ignored) { }
         }
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        if (req == PICK && fileCb != null) {
+            Uri[] r = null;
+            if (res == RESULT_OK && data != null && data.getData() != null) r = new Uri[]{data.getData()};
+            fileCb.onReceiveValue(r);
+            fileCb = null;
+            return;
+        }
+        super.onActivityResult(req, res, data);
     }
 
     @Override
