@@ -1450,7 +1450,7 @@ function showGRes(icon,title,sub,nextLabel,onNext,onMenu,nextBot){
 function showTierBanner(t,g){
   const boss=t==='boss';$('#hardBanner').classList.toggle('boss',boss);
   $('#tbT').textContent=boss?'👑 BOSS LEVEL 👑':'💀 HARD LEVEL 💀';
-  $('#tbS').textContent=g==='arrow'?(boss?'Sirf 1 ❤️ · 0 hint · ek galti = game over':'2 ❤️ · sirf 1 hint · uljha hua maze'):(boss?'0 hint · 2:30 ka timer · lambe raaste':'Bada board · kam rang · sirf 1 hint');
+  $('#tbS').textContent=g==='arrow'?(boss?'5x arrows · sirf 1 ❤️ · 0 hint':'2 ❤️ · sirf 1 hint · uljha hua maze'):(boss?'Bahut bada board · 0 hint · 4:00 ka timer':'Bada board · kam rang · sirf 1 hint');
   $('#hardBanner').classList.remove('hidden');sfx.villain();vib([60,40,120]);
 }
 function hideTierBanner(){$('#hardBanner').classList.add('hidden')}
@@ -1459,7 +1459,7 @@ function rewardHTML(o){ // o:{tier,stars,keys,next,label}
   const st=[0,1,2].map(i=>`<span class="rst ${i<o.stars?'on':''}" style="animation-delay:${.25+i*.18}s">★</span>`).join('');
   return `<div class="reward"><div class="rstars">${st}</div>
    <div class="rwrow"><span>${o.tier==='boss'?'👑':o.tier==='hard'?'💀':'✅'}</span><b>${o.label}</b><small>${o.tier==='boss'?'Very Hard':o.tier==='hard'?'Hard':'Normal'}</small></div>
-   ${o.keys?`<div class="rwrow key big"><span class="chest">🎁</span><b>+${o.keys} Keys 🔑</b><small>Boss reward</small></div>`:`<div class="rwrow dim"><span>🔑</span><b>Keys: 0</b><small>Keys sirf Very Hard level pe</small></div>`}
+   ${o.keys?`<div class="rwrow key big"><span class="chest">🎁</span><b>+${o.keys} Key 🔑</b><small>Boss reward</small></div>`:`<div class="rwrow dim"><span>🔑</span><b>Keys: 0</b><small>Key sirf Boss level pe</small></div>`}
    ${o.next?`<div class="rwnext">${o.next}</div>`:''}</div>`;
 }
 $('#gNext').onclick=()=>{sfx.click();hideGRes();gNextFn&&gNextFn()};
@@ -1467,7 +1467,7 @@ $('#gBot').onclick=()=>{sfx.click();hideGRes();gBotFn&&gBotFn()};
 $('#gMenu').onclick=()=>{sfx.click();hideGRes();gMenuFn&&gMenuFn()};
 
 /* ================= FLOW FREE ================= */
-const FLOW_COLORS=['#e53935','#1e6ff0','#2e9e44','#f2c200','#f57c00','#00a5b8','#c2185b','#8d5524','#7e57c2','#e9e9ee'];
+const FLOW_COLORS=['#e53935','#1e6ff0','#2e9e44','#f2c200','#f57c00','#00a5b8','#c2185b','#8d5524','#7e57c2','#e9e9ee','#00897b','#9e9d24','#5c6bc0','#ff8a80'];
 const flowSize=lv=>lv<=10?5:lv<=25?6:lv<=45?7:lv<=70?8:9;
 function genFlow(lv,seed,n,kf){
   const N=n||flowSize(lv),rnd=mulberry32(seed||lv*7919+13);
@@ -1491,11 +1491,11 @@ function startFlow(lv){
   flStopRace();FL.race=null;clearInterval(FL.btimer);
   lv=Math.max(1,lv);const tier=flTier(lv);
   if(tier!=='normal'&&!startFlow._go){showTierBanner(tier,'flow');setTimeout(()=>{startFlow._go=1;startFlow(lv);startFlow._go=0},120);return}
-  const base=flowSize(lv),N=Math.min(10,base+(tier==='boss'?2:tier==='hard'?1:0)),k=tier==='normal'?undefined:Math.max(4,N-(tier==='boss'?4:2));
+  const base=flowSize(lv),N=tier==='boss'?Math.min(13,base+5):Math.min(10,base+(tier==='hard'?1:0)),k=tier==='normal'?undefined:tier==='boss'?Math.min(14,N+2):Math.max(4,N-2);
   const g=genFlow(lv,0,N,k);
   Object.assign(FL,{lv,N:g.N,segs:g.segs,k:g.segs.length,paths:g.segs.map(()=>[]),cur:null,last:null,moves:0,hint:false,done:false,tier,hints:tier==='boss'?0:tier==='hard'?1:2});
   if(tier!=='normal')setTimeout(hideTierBanner,1300);
-  if(tier==='boss'){FL.bT=150;FL.bt0=performance.now();FL.btimer=setInterval(flBossTick,250)}
+  if(tier==='boss'){FL.bT=240;FL.bt0=performance.now();FL.btimer=setInterval(flBossTick,250)}
   FL.dot={};g.segs.forEach((s,c)=>{FL.dot[s[0]]=c;FL.dot[s[s.length-1]]=c});
   prog.flow=lv;saveProg();
   applyTheme(null);show('flow');renderFlow();
@@ -1566,7 +1566,7 @@ function flCheck(){
   if(FL.done)return;const own=flOwner();
   if(FL.paths.every((_,c)=>flComplete(c))&&own.every(o=>o>=0)){
     FL.done=true;clearInterval(FL.btimer);if(FL.race)return flRaceWin();const stars=FL.hint?2:FL.moves<=FL.k?3:FL.moves<=FL.k+2?2:1;
-    const first=!(prog.flowBossDone||(prog.flowBossDone=[])).includes(FL.lv);let keys=0;if(FL.tier==='boss'&&first){keys=3;prog.flowBossDone.push(FL.lv);addKeys(3)}
+    const first=!(prog.flowBossDone||(prog.flowBossDone=[])).includes(FL.lv);let keys=0;if(FL.tier==='boss'&&first){keys=1;prog.flowBossDone.push(FL.lv);addKeys(1)}
     prog.flowStars[FL.lv]=Math.max(prog.flowStars[FL.lv]||0,stars);prog.flowBest=Math.max(prog.flowBest,FL.lv+1);saveProg();
     sfx.win();vib([40,40,80]);burst();
     const nb=Math.ceil((FL.lv+1)/10)*10,left=nb-FL.lv;
@@ -1580,7 +1580,7 @@ $('#flPrev').onclick=()=>{tap();startFlow(FL.lv-1)};
 $('#flNext').onclick=()=>{tap();startFlow(FL.lv+1)};
 function flBossTick(){if(FL.done||FL.race){clearInterval(FL.btimer);return}const left=Math.max(0,FL.bT-(performance.now()-FL.bt0)/1000);
   $('#flBossT').innerHTML=`⏱️ <b>${Math.floor(left/60)}:${String(Math.floor(left%60)).padStart(2,'0')}</b> boss timer`;$('#flBossT').classList.toggle('low',left<20);
-  if(left<=0){clearInterval(FL.btimer);FL.done=true;sfx.lose();vib([200]);showGRes('<div class="rbig">⌛</div>','Time up!','Boss level 2:30 mein poora karna tha. Dobara try karo 💪','Retry',()=>startFlow(FL.lv),()=>show('home'))}}
+  if(left<=0){clearInterval(FL.btimer);FL.done=true;sfx.lose();vib([200]);showGRes('<div class="rbig">⌛</div>','Time up!','Boss level 4:00 mein poora karna tha. Dobara try karo 💪','Retry',()=>startFlow(FL.lv),()=>show('home'))}}
 $('#flHint').onclick=()=>{
   if(FL.done)return;tap();if(!FL.race){if(FL.hints<=0){toast(FL.tier==='boss'?'👑 Boss level mein koi hint nahi!':'💡 Is level ke hints khatam');return}FL.hints--}
   const c=FL.segs.findIndex((s,i)=>!(FL.paths[i].length===s.length&&FL.paths[i].every((v,j)=>v===s[j]||v===s[s.length-1-j])));
@@ -1605,14 +1605,14 @@ function genArrow(lv,seed,Nf,Kf){
     genArrow._in=0;return best}
   return genArrowOne(lv,seed,Nf,Kf);
 }
-const ARB={want:3,K:12,add:4,len:2.4};
+const ARB={want:1,K:6,add:10,len:.22};
 function genArrowOne(lv,seed,Nf,Kf){
   const boss=!Nf&&arBoss(lv),hard=!Nf&&(arHard(lv)||boss);
-  const N=Nf||Math.min(20,arrowSize(lv)+(boss?ARB.add:hard?2:0)),rnd=mulberry32(seed||lv*104729+7),own=Array(N*N).fill(-1),snakes=[];
+  const N=Nf||(boss?Math.min(26,arrowSize(lv)+ARB.add):Math.min(20,arrowSize(lv)+(hard?2:0))),rnd=mulberry32(seed||lv*104729+7),own=Array(N*N).fill(-1),snakes=[];
   const K=Kf||(boss?ARB.K:hard?16:lv%4===3?8:lv%4===2?3:1);
   const inb=(x,y)=>x>=0&&y>=0&&x<N&&y<N;
   const rayOK=(x,y,d)=>{x+=DXY[d][0];y+=DXY[d][1];while(inb(x,y)){if(own[y*N+x]>=0)return false;x+=DXY[d][0];y+=DXY[d][1]}return true};
-  const maxL=Math.max(4,Math.round(N*(boss?ARB.len:hard?2.2:1.6)));
+  const maxL=boss?5:Math.max(4,Math.round(N*(hard?2.2:1.6)));
   const rays=[],blocked=[];
   const build=()=>{
     const empt=[];for(let i=0;i<N*N;i++)if(own[i]<0)empt.push(i);if(!empt.length)return null;
@@ -1623,7 +1623,7 @@ function genArrowOne(lv,seed,Nf,Kf){
     const bx=hx-DXY[d][0],by=hy-DXY[d][1];
     if(!inb(bx,by)||own[by*N+bx]>=0)return undefined;
     const body=[h,by*N+bx],used=new Set(body);
-    const L=hard?Math.max(3,Math.floor(maxL*(.2+rnd()*.6))):2+Math.floor(rnd()*(maxL-1));
+    const L=boss?2+Math.floor(rnd()*4):hard?Math.max(3,Math.floor(maxL*(.2+rnd()*.6))):2+Math.floor(rnd()*(maxL-1));
     let cx=bx,cy=by,pd=d;
     while(body.length<L){
       const opts=[0,1,2,3].filter(k=>{const x=cx+DXY[k][0],y=cy+DXY[k][1],i=y*N+x;return inb(x,y)&&own[i]<0&&!used.has(i)&&!ray.has(i)&&(k+2)%4!==pd});
@@ -1658,7 +1658,7 @@ function genArrowOne(lv,seed,Nf,Kf){
     }
     return null;
   };
-  if(boss){const c=Math.floor(N/2),d0=Math.floor(rnd()*4);// seed snake in centre
+  if(boss&&false){const c=Math.floor(N/2),d0=Math.floor(rnd()*4);// seed snake in centre
     const body=[c*N+c];let x=c,y=c;for(let k=0;k<3;k++){x-=DXY[d0][0];y-=DXY[d0][1];if(inb(x,y))body.push(y*N+x)}
     const ray=new Set();{let rx=c+DXY[d0][0],ry=c+DXY[d0][1];while(inb(rx,ry)){ray.add(ry*N+rx);rx+=DXY[d0][0];ry+=DXY[d0][1]}}
     body.forEach(i=>own[i]=0);rays.push(ray);blocked.push(false);snakes.push({cells:body.slice().reverse(),d:d0,c:AR_PAL[0]});
@@ -1668,7 +1668,7 @@ function genArrowOne(lv,seed,Nf,Kf){
   }
   for(let tries=0;tries<N*N*30&&snakes.length<N*N;tries++){
     let best=null,dead=false;
-    if(boss){const c_=chain();if(c_){const id=snakes.length;c_.body.forEach(i=>own[i]=id);rays.forEach((r,j)=>{for(const i of c_.body)if(r.has(i)){blocked[j]=true;break}});rays.push(c_.ray);blocked.push(false);snakes.push({cells:c_.body.slice().reverse(),d:c_.d,c:AR_PAL[Math.floor(rnd()*AR_PAL.length)]});continue}}
+    if(boss&&rnd()<.5){const c_=chain();if(c_){const id=snakes.length;c_.body.forEach(i=>own[i]=id);rays.forEach((r,j)=>{for(const i of c_.body)if(r.has(i)){blocked[j]=true;break}});rays.push(c_.ray);blocked.push(false);snakes.push({cells:c_.body.slice().reverse(),d:c_.d,c:AR_PAL[Math.floor(rnd()*AR_PAL.length)]});continue}}
     for(let k=0;k<K;k++){const c=build();if(c===null){dead=true;break}if(c&&(!best||c.score>best.score))best=c}
     if(dead)break;if(!best)continue;
     const id=snakes.length;best.body.forEach(i=>own[i]=id);rays.forEach((r,j)=>{for(const i of best.body)if(r.has(i)){blocked[j]=true;break}});rays.push(best.ray);blocked.push(false);
@@ -1760,7 +1760,7 @@ function arWin(){
   if(AR.race)return arRaceWin();
   const stars=Math.max(1,Math.round(AR.lives/AR.maxLives*3));prog.arrowStars[AR.lv]=Math.max(prog.arrowStars[AR.lv]||0,stars);
   const first=!(prog.arrowBossDone||(prog.arrowBossDone=[])).includes(AR.lv);
-  let keys=0;if(AR.tier==='boss'&&first){keys=3;prog.arrowBossDone.push(AR.lv);addKeys(keys)}
+  let keys=0;if(AR.tier==='boss'&&first){keys=1;prog.arrowBossDone.push(AR.lv);addKeys(keys)}
   prog.arrowBest=Math.max(prog.arrowBest,AR.lv+1);saveProg();
   sfx.win();vib([40,40,80]);burst();
   const nb=Math.ceil((AR.lv+1)/10)*10,left=nb-AR.lv;
@@ -1920,6 +1920,7 @@ function addKeys(n){prog.keys+=n;saveProg();renderKeyChips()}
 /* Very-hard bot reward: first win per game vs a 2000+ rated bot */
 const VH_RATING=2000,VH_KEYS=2;
 function vhBotReward(g,b){
+  return 0;
   if(!b||!b.rating||b.rating<VH_RATING)return 0;
   if(!prog.vhWins)prog.vhWins={};const L=prog.vhWins[g]||(prog.vhWins[g]=[]);
   if(L.includes(b.id))return 0;L.push(b.id);addKeys(VH_KEYS);return VH_KEYS;
@@ -1940,7 +1941,7 @@ function renderLadder(){
   const g=LAD.g,L=ladderList(),cl=prog.cleared[g];
   const nx=L.find(b=>isUnlocked(b.id)&&!cl.includes(b.id)),lockedNext=L.find(b=>!isUnlocked(b.id));
   $('#ladTitle').textContent=LAD_NAME[g];
-  const rule=(g==='ttt'?'Unlocked bots ko kisi bhi order mein haraao. Very Hard bots se <b>2 draw lagatar</b> bhi pass.':'Unlocked bots ko kisi bhi order mein haraao.')+' 🔑 Keys sirf <b>Very Hard</b> pe milti hain: 2000+ rating wale bot ko pehli baar haraao toh <b>+2 🔑</b>.';
+  const rule=(g==='ttt'?'Unlocked bots ko kisi bhi order mein haraao. Very Hard bots se <b>2 draw lagatar</b> bhi pass.':'Unlocked bots ko kisi bhi order mein haraao.')+' 🔑 Keys sirf Arrow/Flow ke <b>👑 Boss level</b> pe milti hain (+1 har boss).';
   const done=cl.length;
   $('#ladTop').innerHTML=(nx?`<div class="htop"><div class="bigav" style="--lc:${LV[nx.lv].c}">${avatar(nx)}</div><div class="hinfo"><div class="label">Suggested muqabla</div>
       <div class="hname">${nx.name} <span class="hr">${nx.rating}</span></div><div class="hnick">${nx.nick}</div></div></div>`
