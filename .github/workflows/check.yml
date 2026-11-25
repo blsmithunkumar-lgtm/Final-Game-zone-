@@ -1,0 +1,21 @@
+name: Godot check
+on: [push, workflow_dispatch]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Godot
+        run: |
+          V=4.7.2
+          for U in https://github.com/godotengine/godot/releases/download/$V-stable/Godot_v$V-stable_linux.x86_64.zip https://github.com/godotengine/godot-builds/releases/download/$V-stable/Godot_v$V-stable_linux.x86_64.zip; do
+            curl -fsSL -o godot.zip "$U" && break
+          done
+          unzip -q godot.zip && mv Godot_v*_linux.x86_64 godot && chmod +x godot && ./godot --version
+      - name: Import
+        run: ./godot --headless --path . --import 2>&1 | tee import.log || true
+      - name: Smoke test
+        run: |
+          timeout 120 ./godot --headless --path . --script res://tests/smoke.gd 2>&1 | tee run.log || true
+          grep -E "SCRIPT ERROR|Parse Error|ERROR" run.log import.log && echo "::warning::errors found" || true
+          grep -q SMOKE_OK run.log
