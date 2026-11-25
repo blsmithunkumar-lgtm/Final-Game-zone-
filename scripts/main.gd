@@ -61,7 +61,7 @@ func _ready() -> void:
 	rng.randomize()
 	_load_best()
 	for n in ["cat.glb", "fish.glb", "obstacle_low.glb", "obstacle_high.glb", "obstacle_full.glb", "segment.glb"]:
-		var p := ASSET_DIR + n
+		var p: String = ASSET_DIR + n
 		scenes[n] = load(p) if ResourceLoader.exists(p) else null
 	_setup_environment()
 	_setup_player()
@@ -358,7 +358,7 @@ func _add_obstacle(kind: String, x: float, z: float) -> void:
 				_box(n, Vector3(1.6, 0.25, 0.22), Vector3(0, 1.85, 0), Color(0.15, 0.15, 0.15))
 			"full":
 				length = 8.0
-				var c := [Color(0.2, 0.45, 0.85), Color(0.85, 0.25, 0.2), Color(0.2, 0.6, 0.35)][rng.randi_range(0, 2)]
+				var c: Color = [Color(0.2, 0.45, 0.85), Color(0.85, 0.25, 0.2), Color(0.2, 0.6, 0.35)][rng.randi_range(0, 2)]
 				_box(n, Vector3(2.0, 2.8, length), Vector3(0, 1.6, -length / 2.0), c, 0.45)
 				_box(n, Vector3(1.6, 0.9, 0.05), Vector3(0, 2.2, 0.01), Color(0.6, 0.85, 1.0), 0.15)
 				for wz in [-1.5, -6.5]:

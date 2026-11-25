@@ -16,6 +16,6 @@ jobs:
         run: ./godot --headless --path . --import 2>&1 | tee import.log || true
       - name: Smoke test
         run: |
-          timeout 120 ./godot --headless --path . --script res://tests/smoke.gd 2>&1 | tee run.log || true
+          timeout 60 ./godot --headless --path . --script res://tests/smoke.gd 2>&1 | tee run.log || true
           grep -E "SCRIPT ERROR|Parse Error|ERROR" run.log import.log && echo "::warning::errors found" || true
           grep -q SMOKE_OK run.log

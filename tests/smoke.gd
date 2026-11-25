@@ -12,3 +12,4 @@ func _initialize() -> void:
 		await process_frame
 	print("SMOKE_OK distance=", main.distance, " fish=", main.fish_count, " dead=", main.dead, " anim=", main.anim != null, " anims=", main.anim.get_animation_list() if main.anim else [])
 	quit(0)
+	return
