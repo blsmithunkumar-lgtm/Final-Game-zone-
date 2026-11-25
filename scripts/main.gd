@@ -119,11 +119,15 @@ func _setup_environment() -> void:
 	sky.sky_material = sm
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.85
+	env.ambient_light_energy = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_white = 6.0
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.25
+	env.adjustment_contrast = 1.08
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.75, 0.88, 0.98)
-	env.fog_density = 0.006
+	env.fog_density = 0.0035
 	env.glow_enabled = true
 	env.glow_intensity = 0.5
 	var we := WorldEnvironment.new()
@@ -132,7 +136,7 @@ func _setup_environment() -> void:
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, 28, 0)
-	sun.light_energy = 1.25
+	sun.light_energy = 1.0
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 55.0
 	add_child(sun)
@@ -531,60 +535,79 @@ func _label(text: String, size: int, parent: Control) -> Label:
 	return l
 
 
+func _vbox(parent: Control, top: float) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	v.offset_top = top
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 18)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(v)
+	return v
+
+
+func _center_label(text: String, size: int, parent: Control) -> Label:
+	var l := _label(text, size, parent)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return l
+
+
 func _setup_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var root := Control.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(root)
 
-	lbl_score = _label("0 m", 40, root)
-	lbl_score.position = Vector2(30, 40)
-	lbl_fish = _label("FISH  0", 40, root)
-	lbl_fish.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	lbl_fish.position = Vector2(-260, 40)
-	lbl_fish.size = Vector2(230, 60)
+	var top := HBoxContainer.new()
+	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	top.offset_left = 30
+	top.offset_right = -30
+	top.offset_top = 40
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(top)
+	lbl_score = _label("0 m", 42, top)
+	lbl_score.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl_fish = _label("FISH  0", 42, top)
 	lbl_fish.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 	start_panel = Control.new()
-	start_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	start_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	start_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(start_panel)
-	var title := _label("CAT RUN", 96, start_panel)
-	title.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.size = Vector2(700, 140)
-	title.position = Vector2(-350, 220)
-	var hint := _label("Tap to start\n\nSwipe left / right  -  lane\nSwipe up  -  jump\nSwipe down  -  slide", 34, start_panel)
-	hint.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.size = Vector2(700, 320)
-	hint.position = Vector2(-350, -380)
-	lbl_best = _label("BEST  %d" % best, 36, start_panel)
-	lbl_best.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	lbl_best.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_best.size = Vector2(700, 60)
-	lbl_best.position = Vector2(-350, 360)
+	var sv := _vbox(start_panel, 200)
+	_center_label("CAT RUN", 100, sv)
+	lbl_best = _center_label("BEST  %d" % best, 38, sv)
+	var hb := _vbox(start_panel, 0)
+	hb.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hb.offset_top = -420
+	hb.offset_bottom = -120
+	_center_label("TAP TO START", 50, hb)
+	_center_label("Swipe left / right : lane\nSwipe up : jump\nSwipe down : slide", 32, hb)
 
-	over_panel = ColorRect.new()
-	(over_panel as ColorRect).color = Color(0.03, 0.05, 0.12, 0.72)
-	over_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	over_panel.visible = false
-	root.add_child(over_panel)
-	lbl_over = _label("", 52, over_panel)
-	lbl_over.set_anchors_preset(Control.PRESET_CENTER)
-	lbl_over.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl_over.size = Vector2(700, 520)
-	lbl_over.position = Vector2(-350, -400)
+	var dim := ColorRect.new()
+	dim.color = Color(0.03, 0.05, 0.12, 0.72)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.visible = false
+	root.add_child(dim)
+	over_panel = dim
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dim.add_child(center)
+	var ov := VBoxContainer.new()
+	ov.alignment = BoxContainer.ALIGNMENT_CENTER
+	ov.add_theme_constant_override("separation", 40)
+	center.add_child(ov)
+	lbl_over = _center_label("", 50, ov)
 	var btn := Button.new()
-	btn.text = "PLAY AGAIN"
-	btn.add_theme_font_size_override("font_size", 44)
-	btn.set_anchors_preset(Control.PRESET_CENTER)
-	btn.size = Vector2(420, 110)
-	btn.position = Vector2(-210, 180)
+	btn.text = "  PLAY AGAIN  "
+	btn.add_theme_font_size_override("font_size", 46)
+	btn.custom_minimum_size = Vector2(440, 120)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.pressed.connect(func(): get_tree().reload_current_scene())
-	over_panel.add_child(btn)
+	ov.add_child(btn)
 
 
 # ---------------------------------------------------------------- save

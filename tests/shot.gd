@@ -17,10 +17,13 @@ func _initialize() -> void:
 				if o.kind == "low": main._jump()
 				elif o.kind == "high": main._slide()
 				else: main._change_lane(1 if main.lane < 1 else -1)
-		if i == 120: root.get_texture().get_image().save_png("res://shots/2_run.png")
+		if i == 60: root.get_texture().get_image().save_png("res://shots/2_run.png")
 		await process_frame
 	main._jump()
 	for i in 8: await process_frame
 	root.get_texture().get_image().save_png("res://shots/3_jump.png")
+	main._die()
+	for i in 60: await process_frame
+	root.get_texture().get_image().save_png("res://shots/4_over.png")
 	print("SHOT_OK dead=", main.dead, " dist=", main.distance)
 	quit(0)
