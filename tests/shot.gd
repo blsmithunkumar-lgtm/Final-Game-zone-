@@ -9,7 +9,7 @@ func _initialize() -> void:
 	root.get_texture().get_image().save_png("res://shots/1_start.png")
 	main._start_game()
 	main.ACCEL
-	for i in 240:
+	for i in 150:
 		# dodge automatically so we keep running
 		for o in main.obstacles:
 			var dz = main.player.position.z - o.z

@@ -27,7 +27,7 @@ jobs:
       - name: Screenshots
         run: |
           sudo apt-get -qq update && sudo apt-get -qq install -y xvfb mesa-utils libgl1-mesa-dri > /dev/null
-          xvfb-run -s "-screen 0 720x1280x24" timeout 90 ./godot --path . --rendering-method gl_compatibility --resolution 720x1280 --script res://tests/shot.gd 2>&1 | tail -20 || true
+          xvfb-run -s "-screen 0 720x1280x24" timeout 200 ./godot --path . --rendering-method gl_compatibility --resolution 720x1280 --script res://tests/shot.gd 2>&1 | tail -20 || true
           ls -la shots || true
       - name: Save screenshots to branch
         if: always()
