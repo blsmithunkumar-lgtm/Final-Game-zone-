@@ -41,7 +41,7 @@ var vy := 0.0
 var slide_t := 0.0
 
 var segments: Array = []
-var next_seg_z := 0.0
+var next_seg_z := 20.0
 var obstacles: Array = []   # {node, x, z, len, kind}
 var fishes: Array = []      # {node, x, z, y}
 var next_row_z := -35.0
