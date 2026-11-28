@@ -197,14 +197,16 @@ func _setup_environment() -> void:
 		sm2.set("disable_fog", true)
 		_quad(backdrop, Vector3(-260, -40, -200), Vector3(260, -40, -200), Vector3(260, 220, -200), Vector3(-260, 220, -200),
 			Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0), sm2, Vector3(0, 0, 1), false)
-	for L in [["skyline_far", -185.0, 340.0, -2.0], ["skyline_near", -165.0, 300.0, -3.0]]:
+	# [name, z, tile height, bottom y]  — tiled 3x side by side
+	for L in [["skyline_far", -190.0, 18.0, -1.0], ["skyline_near", -170.0, 22.0, -2.0]]:
 		var t: Texture2D = texs.get(L[0])
 		if t:
-			var w: float = L[2]
-			var h: float = w * t.get_height() / t.get_width()
-			var mi := _billboard(backdrop, L[0], t, Vector3(0, L[3], L[1]), w, h)
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			(mi.material_override as StandardMaterial3D).set("disable_fog", true)
+			var h: float = L[2]
+			var w: float = h * t.get_width() / t.get_height()
+			for k in [-1, 0, 1]:
+				var mi := _billboard(backdrop, L[0], t, Vector3(k * w, L[3], L[1]), w, h)
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				(mi.material_override as StandardMaterial3D).set("disable_fog", true)
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, 28, 0)
