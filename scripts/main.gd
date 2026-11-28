@@ -10,6 +10,9 @@ extends Node3D
 ##   segment.glb        one 40m piece of street (road + sidewalks + walls), front at z=0, extends to -Z
 
 const LANE_W := 2.2
+const ROAD_W := 7.42      # road.png width in metres (lane centres line up with LANE_W)
+const SW_W := 2.6         # sidewalk width
+const TEX_DIR := "res://assets/textures/"
 const SEG_LEN := 40.0
 const SEG_COUNT := 6
 const ASSET_DIR := "res://assets/"
@@ -45,6 +48,9 @@ var next_row_z := -35.0
 var rng := RandomNumberGenerator.new()
 var mats := {}
 var scenes := {}
+var texs := {}
+var building_texs: Array = []
+var backdrop: Node3D
 
 var lbl_score: Label
 var lbl_fish: Label
@@ -63,6 +69,13 @@ func _ready() -> void:
 	for n in ["cat.glb", "fish.glb", "obstacle_low.glb", "obstacle_high.glb", "obstacle_full.glb", "segment.glb"]:
 		var p: String = ASSET_DIR + n
 		scenes[n] = load(p) if ResourceLoader.exists(p) else null
+	for t in ["road", "sidewalk", "wall", "sky", "skyline_far", "skyline_near", "barrier_low", "barrier_high", "truck_back", "truck_side", "truck_top"]:
+		var tp: String = TEX_DIR + t + ".png"
+		texs[t] = load(tp) if ResourceLoader.exists(tp) else null
+	for i in 64:
+		var bp: String = TEX_DIR + "buildings/b%02d.png" % i
+		if ResourceLoader.exists(bp):
+			building_texs.append(load(bp))
 	_setup_environment()
 	_setup_player()
 	_setup_camera()
@@ -100,6 +113,48 @@ func _box(parent: Node3D, size: Vector3, pos: Vector3, c: Color, rough := 0.85) 
 	return mi
 
 
+func _tmat(key: String, tex: Texture2D, unshaded := false, alpha := false) -> StandardMaterial3D:
+	if mats.has(key):
+		return mats[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.roughness = 1.0
+	if unshaded:
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if alpha:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		m.alpha_scissor_threshold = 0.5
+	mats[key] = m
+	return m
+
+
+## Textured quad. Corners a,b,c,d go round the quad; uv per corner.
+func _quad(parent: Node3D, a: Vector3, b: Vector3, c: Vector3, d: Vector3, ua: Vector2, ub: Vector2, uc: Vector2, ud: Vector2, mat: Material, n: Vector3, shadows := true) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for pair in [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]]:
+		st.set_normal(n)
+		st.set_uv(pair[1])
+		st.add_vertex(pair[0])
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	if not shadows:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
+
+
+## Upright picture facing +Z (towards the player), bottom-centre at pos.
+func _billboard(parent: Node3D, key: String, tex: Texture2D, pos: Vector3, w: float, h: float, unshaded := true) -> MeshInstance3D:
+	var x0 := pos.x - w / 2.0
+	var x1 := pos.x + w / 2.0
+	return _quad(parent, Vector3(x0, pos.y, pos.z), Vector3(x1, pos.y, pos.z), Vector3(x1, pos.y + h, pos.z), Vector3(x0, pos.y + h, pos.z),
+		Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0), _tmat(key, tex, unshaded, true), Vector3(0, 0, 1))
+
+
 func _instance(name: String) -> Node3D:
 	if scenes.get(name) != null:
 		return scenes[name].instantiate()
@@ -134,6 +189,23 @@ func _setup_environment() -> void:
 	we.environment = env
 	add_child(we)
 
+	# far backdrop: sky + two skyline layers, follows the player
+	backdrop = Node3D.new()
+	add_child(backdrop)
+	if texs.sky:
+		var sm2 := _tmat("sky", texs.sky, true, false)
+		sm2.set("disable_fog", true)
+		_quad(backdrop, Vector3(-260, -40, -200), Vector3(260, -40, -200), Vector3(260, 220, -200), Vector3(-260, 220, -200),
+			Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0), sm2, Vector3(0, 0, 1), false)
+	for L in [["skyline_far", -185.0, 340.0, -2.0], ["skyline_near", -165.0, 300.0, -3.0]]:
+		var t: Texture2D = texs.get(L[0])
+		if t:
+			var w: float = L[2]
+			var h: float = w * t.get_height() / t.get_width()
+			var mi := _billboard(backdrop, L[0], t, Vector3(0, L[3], L[1]), w, h)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			(mi.material_override as StandardMaterial3D).set("disable_fog", true)
+
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52, 28, 0)
 	sun.light_energy = 1.0
@@ -149,26 +221,48 @@ func _spawn_segment() -> void:
 	var custom := _instance("segment.glb")
 	if custom:
 		seg.add_child(custom)
-	else:
-		var half := SEG_LEN / 2.0
-		var road_w := LANE_W * 3.0 + 0.6
-		_box(seg, Vector3(road_w, 0.2, SEG_LEN), Vector3(0, -0.1, -half), Color(0.33, 0.35, 0.39))
-		for x in [-LANE_W / 2.0, LANE_W / 2.0]:
-			for k in 10:
-				_box(seg, Vector3(0.12, 0.02, 1.8), Vector3(x, 0.01, -2.0 - k * 4.0), Color(0.85, 0.86, 0.88))
-		for s in [-1, 1]:
-			var sx: float = s * (road_w / 2.0 + 1.1)
-			_box(seg, Vector3(2.2, 0.3, SEG_LEN), Vector3(sx, 0.15, -half), Color(0.6, 0.62, 0.67))
-			var wx: float = s * (road_w / 2.0 + 2.5)
-			_box(seg, Vector3(0.6, 6.0, SEG_LEN), Vector3(wx, 3.0, -half), Color(0.7, 0.34, 0.23))
-			for k in 4:
-				_box(seg, Vector3(1.0, 6.6, 1.0), Vector3(wx - s * 0.2, 3.3, -5.0 - k * 10.0), Color(0.82, 0.79, 0.73))
-			if rng.randf() < 0.7:
-				var bz := -rng.randf_range(4.0, SEG_LEN - 4.0)
-				var bin := _box(seg, Vector3(1.0, 1.3, 1.0), Vector3(sx, 0.95, bz), Color(0.45, 0.5, 0.56), 0.5)
-				_box(bin, Vector3(1.1, 0.12, 1.1), Vector3(0, 0.7, 0), Color(0.36, 0.4, 0.46), 0.5)
+	elif texs.road:
+		_build_textured_segment(seg)
 	segments.append(seg)
 	next_seg_z -= SEG_LEN
+
+
+func _build_textured_segment(seg: Node3D) -> void:
+	var L := SEG_LEN
+	var rh := ROAD_W / 2.0
+	# road: 3 texture repeats per segment
+	_quad(seg, Vector3(-rh, 0, 0), Vector3(rh, 0, 0), Vector3(rh, 0, -L), Vector3(-rh, 0, -L),
+		Vector2(0, 3), Vector2(1, 3), Vector2(1, 0), Vector2(0, 0), _tmat("road", texs.road), Vector3.UP)
+	for sd in [-1.0, 1.0]:
+		var xi: float = sd * rh
+		var xo: float = sd * (rh + SW_W)
+		# sidewalk: image x runs along the street
+		if texs.sidewalk:
+			var rep := 15.0
+			_quad(seg, Vector3(xi, 0.02, 0), Vector3(xo, 0.02, 0), Vector3(xo, 0.02, -L), Vector3(xi, 0.02, -L),
+				Vector2(0, 0), Vector2(0, 1), Vector2(rep, 1), Vector2(rep, 0), _tmat("sidewalk", texs.sidewalk), Vector3.UP)
+		# buildings along the outer edge, gaps filled with brick wall
+		var z := -rng.randf_range(0.0, 1.5)
+		while z > -L + 2.0 and building_texs.size() > 0:
+			var t: Texture2D = building_texs[rng.randi_range(0, building_texs.size() - 1)]
+			var h := rng.randf_range(6.5, 8.5) * clampf(float(t.get_height()) / float(t.get_width()), 0.85, 1.3) * 0.8
+			var w := h * t.get_width() / t.get_height()
+			if z - w < -L:
+				break
+			var z0 := z
+			var z1 := z - w
+			# u must read left-to-right as seen from the road
+			var ua := 0.0 if sd < 0 else 1.0
+			var ub := 1.0 - ua
+			_quad(seg, Vector3(xo, 0, z0), Vector3(xo, 0, z1), Vector3(xo, h, z1), Vector3(xo, h, z0),
+				Vector2(ua, 1), Vector2(ub, 1), Vector2(ub, 0), Vector2(ua, 0),
+				_tmat("b%d" % t.get_rid().get_id(), t, true, true), Vector3(-sd, 0, 0))
+			var gap := rng.randf_range(0.2, 2.2)
+			if texs.wall and gap > 0.6:
+				var wh := 2.4
+				_quad(seg, Vector3(xo, 0, z1), Vector3(xo, 0, z1 - gap), Vector3(xo, wh, z1 - gap), Vector3(xo, wh, z1),
+					Vector2(0, 1), Vector2(gap / wh, 1), Vector2(gap / wh, 0), Vector2(0, 0), _tmat("wall", texs.wall, true), Vector3(-sd, 0, 0))
+			z = z1 - gap
 
 
 func _recycle_segments() -> void:
@@ -347,7 +441,29 @@ func _add_obstacle(kind: String, x: float, z: float) -> void:
 	if custom:
 		n.add_child(custom)
 		if kind == "full":
-			length = 8.0
+			length = 7.0
+	elif kind == "low" and texs.barrier_low:
+		_billboard(n, "barrier_low", texs.barrier_low, Vector3.ZERO, 2.1, 2.1 * 409.0 / 1023.0, false)
+	elif kind == "high" and texs.barrier_high:
+		_billboard(n, "barrier_high", texs.barrier_high, Vector3.ZERO, 2.1, 2.45, false)
+	elif kind == "full" and texs.truck_back:
+		length = 7.0
+		var tw := 2.0
+		var th := 2.9
+		_box(n, Vector3(tw * 0.92, th * 0.8, length * 0.97), Vector3(0, th * 0.48, -length / 2.0), Color(0.85, 0.5, 0.12), 0.6)
+		var mb := _tmat("truck_back", texs.truck_back, false, true)
+		var ms := _tmat("truck_side", texs.truck_side, false, true)
+		var mt := _tmat("truck_top", texs.truck_top, false, true)
+		var hw := tw / 2.0
+		_quad(n, Vector3(-hw, 0, 0.02), Vector3(hw, 0, 0.02), Vector3(hw, th, 0.02), Vector3(-hw, th, 0.02),
+			Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0), mb, Vector3(0, 0, 1))
+		# sides: cab at the far end (-Z)
+		_quad(n, Vector3(-hw - 0.02, 0, -length), Vector3(-hw - 0.02, 0, 0), Vector3(-hw - 0.02, th, 0), Vector3(-hw - 0.02, th, -length),
+			Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0), ms, Vector3(-1, 0, 0))
+		_quad(n, Vector3(hw + 0.02, 0, 0), Vector3(hw + 0.02, 0, -length), Vector3(hw + 0.02, th, -length), Vector3(hw + 0.02, th, 0),
+			Vector2(1, 1), Vector2(0, 1), Vector2(0, 0), Vector2(1, 0), ms, Vector3(1, 0, 0))
+		_quad(n, Vector3(-hw, th + 0.01, -length), Vector3(hw, th + 0.01, -length), Vector3(hw, th + 0.01, 0), Vector3(-hw, th + 0.01, 0),
+			Vector2(0, 0), Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), mt, Vector3.UP)
 	else:
 		match kind:
 			"low":
@@ -361,7 +477,7 @@ func _add_obstacle(kind: String, x: float, z: float) -> void:
 				_box(n, Vector3(2.0, 0.7, 0.2), Vector3(0, 1.85, 0), Color(0.95, 0.75, 0.1), 0.5)
 				_box(n, Vector3(1.6, 0.25, 0.22), Vector3(0, 1.85, 0), Color(0.15, 0.15, 0.15))
 			"full":
-				length = 8.0
+				length = 7.0
 				var c: Color = [Color(0.2, 0.45, 0.85), Color(0.85, 0.25, 0.2), Color(0.2, 0.6, 0.35)][rng.randi_range(0, 2)]
 				_box(n, Vector3(2.0, 2.8, length), Vector3(0, 1.6, -length / 2.0), c, 0.45)
 				_box(n, Vector3(1.6, 0.9, 0.05), Vector3(0, 2.2, 0.01), Color(0.6, 0.85, 1.0), 0.15)
@@ -426,6 +542,8 @@ func _add_fish_arc(x: float, z: float) -> void:
 func _process(delta: float) -> void:
 	for f in fishes:
 		f.node.rotate_y(delta * 3.0)
+	if backdrop and player:
+		backdrop.position = Vector3(player.position.x * 0.3, 0, player.position.z)
 	if not running:
 		if not dead:
 			_update_camera(1.0)
@@ -458,6 +576,7 @@ func _process(delta: float) -> void:
 	player.position.y = py
 
 	_recycle_segments()
+	backdrop.position = Vector3(player.position.x * 0.3, 0, player.position.z)
 	_spawn_rows()
 	_check_hits()
 	_update_camera(clampf(delta * 8.0, 0.0, 1.0))
